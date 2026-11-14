@@ -1,0 +1,21 @@
+# Visual Studio cache and user-specific files
+.vs/
+*.user
+*.suo
+
+# Build output
+Debug/
+Release/
+x64/
+Win32/
+
+# MASM/compiler/linker generated files
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.res
+*.sbr
+*.idb
+*.lst
+*.tlog/
