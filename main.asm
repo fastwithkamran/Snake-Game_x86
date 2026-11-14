@@ -12,7 +12,7 @@ snakelen Byte 1; starts with 1 dot
 snake Byte "O", 0
 
 ; coordinates of snake
-direction Byte ?
+direction Byte 0
 snakeX Byte MAX_SIZE dup(0); x coordinates of snake
 snakeY Byte MAX_SIZE dup(0); y coordinates of snake
 
@@ -81,13 +81,13 @@ cmp al, 0; arrow keys set al = 0
 jne MoveStep
 
 cmp ah, 48h ;up arrow
-je MoveUp:
+je MoveUp
 cmp ah, 50h ;down arrow
-je MoveDown:
+je MoveDown
 cmp ah, 4Bh ;left arrow
-je MoveLeft:
+je MoveLeft
 cmp ah, 4Dh ;right arrow
-je MoveRight:
+je MoveRight
 
 MoveUp:
 mov direction, 1
@@ -110,6 +110,68 @@ loop Gameloop
 
 ret
 Game endp
+
+MoveSnake PROC; procedure to move the snake
+cmp direction, 0; if direction is 0 then snake will not move
+je NoMove
+
+; remove the tail
+movzx esi, snakelen
+dec esi
+mov dl, snakeX[esi]
+mov dh, snakeY[esi]
+call Gotoxy ;move the cursor to tail
+
+mov al, ' '; update tail
+call writechar
+
+; shift dots one index ahead to overwrite head
+mov al, snake
+movzx ecx, snakelen
+dec ecx; cause tail has been removed
+
+cmp ecx, 0
+je CheckDirection
+
+Shiftloop:
+mov snakeX[ecx], al
+mov snakeY[ecx], al
+loop Shiftloop
+
+; update head
+CheckDirection:
+cmp direction, 1
+je Up
+cmp direction, 2
+je Down
+cmp direction, 3
+je Left
+cmp direction, 4
+je Right
+
+Up:
+dec snakeY
+jmp UpdateHead
+Down:
+inc snakeY
+jmp UpdateHead
+Left:
+dec snakeX
+jmp UpdateHead
+Right:
+inc snakeX
+jmp UpdateHead
+
+UpdateHead:
+mov dl, snakeX
+mov dh, snakeY
+call Gotoxy
+mov al, snake
+call writechar
+
+NoMove:
+ret
+MoveSnake endp
 
 main PROC
 call clrscr
