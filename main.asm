@@ -8,15 +8,16 @@ border Byte "#", 0
 
 ; snake vars
 MAX_SIZE = 20; max size of snake, grows by eating food
-snakelen Byte 1; starts with 1 dot
-snakechar Byte "O", 0
+snakelen Byte 1; starts with 1 dot 
+snake Byte "O", 0
 
 ; coordinates of snake
+direction Byte ?
 snakeX Byte MAX_SIZE dup(0); x coordinates of snake
 snakeY Byte MAX_SIZE dup(0); y coordinates of snake
 
 .code
-drawborder PROC; procedure to draw border
+Drawborder PROC; procedure to draw border
 
 ;horizontal border
 mov ecx, cols
@@ -61,7 +62,7 @@ loop yloop
 ret
 drawborder ENDP
 
-snake PROC
+Game PROC; procedure to take the input key from user
 mov snakeX, 20
 mov snakeY, 10
 
@@ -69,16 +70,51 @@ mov dl, snakeX
 mov dh, snakeY
 call Gotoxy
 
-mov al, snakechar
+mov al, snake
 call writechar
 
+Gameloop:
+call ReadKey
+jz MoveStep; if no key press Zero flag will high
+
+cmp al, 0; arrow keys set al = 0
+jne MoveStep
+
+cmp ah, 48h ;up arrow
+je MoveUp:
+cmp ah, 50h ;down arrow
+je MoveDown:
+cmp ah, 4Bh ;left arrow
+je MoveLeft:
+cmp ah, 4Dh ;right arrow
+je MoveRight:
+
+MoveUp:
+mov direction, 1
+jmp MoveStep
+MoveDown:
+mov direction, 2
+jmp MoveStep
+MoveLeft:
+mov direction, 3
+jmp MoveStep
+MoveRight:
+mov direction, 4
+jmp MoveStep
+
+MoveStep:
+call MoveSnake
+mov eax, 100; control game speed
+call Delay
+loop Gameloop
+
 ret
-snake endp
+Game endp
 
 main PROC
 call clrscr
-call drawborder
-call snake
+call Drawborder
+call Game
 
 mov dl, 0
 mov dh, rows+1
