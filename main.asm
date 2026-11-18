@@ -25,6 +25,10 @@ foodY Byte 0
 tailX Byte 0
 tailY Byte 0
 
+; game state vars
+stat Byte 0; 0 = playing, 1 = lost
+loseMsg Byte "Game Over! Snake hit the border.", 0
+
 .code
 Drawborder PROC; procedure to draw border
 
@@ -106,6 +110,7 @@ ret
 PlaceFood ENDP
 
 Game PROC; procedure to take the input key from user
+mov stat, 0
 mov snakeX, 20
 mov snakeY, 10
 
@@ -149,10 +154,18 @@ jmp MoveStep
 
 MoveStep:
 call MoveSnake
+cmp stat, 0
+jne EndGame
 mov eax, 100; control game speed
 call Delay
 jmp Gameloop
 
+EndGame:
+mov dl, 0
+mov dh, rows + 1
+call Gotoxy
+mov edx, OFFSET loseMsg
+call WriteString
 ret
 Game endp
 
@@ -214,6 +227,16 @@ inc snakeX
 jmp UpdateHead
 
 UpdateHead:
+; check whether the new head reached the border
+cmp snakeX, 0
+je HitWall
+cmp snakeX, cols - 1
+je HitWall
+cmp snakeY, 0
+je HitWall
+cmp snakeY, rows - 1
+je HitWall
+
 mov dl, snakeX
 mov dh, snakeY
 call Gotoxy
@@ -246,6 +269,10 @@ call WriteChar
 
 FoodEaten:
 call PlaceFood
+jmp NoMove
+
+HitWall:
+mov stat, 1
 
 NoMove:
 ret
