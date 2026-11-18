@@ -26,8 +26,9 @@ tailX Byte 0
 tailY Byte 0
 
 ; game state vars
-stat Byte 0; 0 = playing, 1 = lost
-loseMsg Byte "Game Over! Snake hit the border.", 0
+stat Byte 0; 0 = playing, 1 = lost, 2 = won
+loseMsg Byte "Game Over! Snake hit the border", 0
+winMsg Byte "You Win! Snake ate 20 foods", 0
 sc Byte 0; number of foods eaten
 scMsg Byte "Score: ", 0
 
@@ -179,7 +180,13 @@ EndGame:
 mov dl, 0
 mov dh, rows + 1
 call Gotoxy
+cmp stat, 2
+je WonGame
 mov edx, OFFSET loseMsg
+jmp ShowGameResult
+WonGame:
+mov edx, OFFSET winMsg
+ShowGameResult:
 call WriteString
 ret
 Game endp
@@ -285,8 +292,14 @@ mov al, snake
 call WriteChar
 
 FoodEaten:
-call PlaceFood
 call ShowScore
+cmp sc, 20
+je WonState
+call PlaceFood
+jmp NoMove
+
+WonState:
+mov stat, 2
 jmp NoMove
 
 HitWall:
