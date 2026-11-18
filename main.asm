@@ -7,7 +7,7 @@ cols = 40
 border Byte "#", 0
 
 ; snake vars
-MAX_SIZE = 20; max size of snake, grows by eating food
+MAX_SIZE = 21; max size of snake, grows by eating food
 snakelen Byte 1; starts with 1 dot 
 snake Byte "O", 0
 
@@ -20,6 +20,10 @@ snakeY Byte MAX_SIZE dup(0); y coordinates of snake
 food Byte "*", 0
 foodX Byte 0
 foodY Byte 0
+
+; saved tail vars used when the snake grows
+tailX Byte 0
+tailY Byte 0
 
 .code
 Drawborder PROC; procedure to draw border
@@ -147,7 +151,7 @@ MoveStep:
 call MoveSnake
 mov eax, 100; control game speed
 call Delay
-loop Gameloop
+jmp Gameloop
 
 ret
 Game endp
@@ -159,6 +163,10 @@ je NoMove
 ; remove the tail
 movzx esi, snakelen
 dec esi
+mov al, snakeX[esi]
+mov tailX, al
+mov al, snakeY[esi]
+mov tailY, al
 mov dl, snakeX[esi]
 mov dh, snakeY[esi]
 call Gotoxy ;move the cursor to tail
@@ -166,8 +174,7 @@ call Gotoxy ;move the cursor to tail
 mov al, ' '; update tail
 call writechar
 
-; shift dots one index ahead to overwrite head
-mov al, snake
+; shift coordinates one index ahead to make room for the new head
 movzx ecx, snakelen
 dec ecx; cause tail has been removed
 
@@ -175,9 +182,12 @@ cmp ecx, 0
 je CheckDirection
 
 Shiftloop:
+mov al, snakeX[ecx - 1]
 mov snakeX[ecx], al
+mov al, snakeY[ecx - 1]
 mov snakeY[ecx], al
-loop Shiftloop
+dec ecx
+jnz Shiftloop
 
 ; update head
 CheckDirection:
@@ -217,6 +227,24 @@ jne NoMove
 mov al, snakeY
 cmp al, foodY
 jne NoMove
+
+; grow by adding a segment at the old tail position
+movzx esi, snakelen
+cmp esi, MAX_SIZE
+jae FoodEaten
+mov al, tailX
+mov snakeX[esi], al
+mov al, tailY
+mov snakeY[esi], al
+inc snakelen
+
+mov dl, tailX
+mov dh, tailY
+call Gotoxy
+mov al, snake
+call WriteChar
+
+FoodEaten:
 call PlaceFood
 
 NoMove:
