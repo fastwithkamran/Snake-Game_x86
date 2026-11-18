@@ -32,6 +32,12 @@ winMsg Byte "You Win! Snake ate 20 foods", 0
 sc Byte 0; number of foods eaten
 scMsg Byte "Score: ", 0
 
+; menu messages
+menuMsg Byte "SNAKE GAME", 0Dh, 0Ah, 0Dh, 0Ah
+		Byte "1. Play", 0Dh, 0Ah
+		Byte "2. Exit", 0Dh, 0Ah, 0Dh, 0Ah
+		Byte "Choose (1-2): ", 0
+
 .code
 Drawborder PROC; procedure to draw border
 
@@ -310,10 +316,26 @@ ret
 MoveSnake endp
 
 main PROC
+MenuLoop:
+call clrscr
+mov edx, OFFSET menuMsg
+call WriteString
+call ReadChar
+
+cmp al, '1'
+je StartGame
+cmp al, '2'
+je ExitGame
+jmp MenuLoop
+
+StartGame:
 call clrscr
 call Drawborder
 call Game
+call WaitMsg
+jmp MenuLoop
 
+ExitGame:
 mov dl, 0
 mov dh, rows+1
 call Gotoxy
