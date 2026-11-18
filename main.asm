@@ -28,6 +28,8 @@ tailY Byte 0
 ; game state vars
 stat Byte 0; 0 = playing, 1 = lost
 loseMsg Byte "Game Over! Snake hit the border.", 0
+sc Byte 0; number of foods eaten
+scMsg Byte "Score: ", 0
 
 .code
 Drawborder PROC; procedure to draw border
@@ -109,8 +111,20 @@ call WriteChar
 ret
 PlaceFood ENDP
 
+ShowScore PROC; display the current score below the border
+mov dl, 0
+mov dh, rows
+call Gotoxy
+mov edx, OFFSET scMsg
+call WriteString
+movzx eax, sc
+call WriteDec
+ret
+ShowScore ENDP
+
 Game PROC; procedure to take the input key from user
 mov stat, 0
+mov sc, 0
 mov snakeX, 20
 mov snakeY, 10
 
@@ -122,6 +136,7 @@ mov al, snake
 call writechar
 
 call PlaceFood
+call ShowScore
 
 Gameloop:
 call ReadKey
@@ -251,6 +266,8 @@ mov al, snakeY
 cmp al, foodY
 jne NoMove
 
+inc sc
+
 ; grow by adding a segment at the old tail position
 movzx esi, snakelen
 cmp esi, MAX_SIZE
@@ -269,6 +286,7 @@ call WriteChar
 
 FoodEaten:
 call PlaceFood
+call ShowScore
 jmp NoMove
 
 HitWall:
