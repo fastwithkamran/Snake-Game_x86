@@ -16,6 +16,11 @@ direction Byte 0
 snakeX Byte MAX_SIZE dup(0); x coordinates of snake
 snakeY Byte MAX_SIZE dup(0); y coordinates of snake
 
+; food vars
+food Byte "*", 0
+foodX Byte 0
+foodY Byte 0
+
 .code
 Drawborder PROC; procedure to draw border
 
@@ -62,6 +67,40 @@ loop yloop
 ret
 drawborder ENDP
 
+PlaceFood PROC; place food at a random location inside the border
+NewFood:
+mov eax, cols - 2
+call RandomRange
+inc eax; x coordinate from 1 to cols - 2
+mov foodX, al
+
+mov eax, rows - 2
+call RandomRange
+inc eax; y coordinate from 1 to rows - 2
+mov foodY, al
+
+; food must not land on the snake
+movzx ecx, snakelen
+mov esi, 0
+CheckSnake:
+mov al, foodX
+cmp al, snakeX[esi]
+jne NextSegment
+mov al, foodY
+cmp al, snakeY[esi]
+je NewFood
+NextSegment:
+inc esi
+loop CheckSnake
+
+mov dl, foodX
+mov dh, foodY
+call Gotoxy
+mov al, food
+call WriteChar
+ret
+PlaceFood ENDP
+
 Game PROC; procedure to take the input key from user
 mov snakeX, 20
 mov snakeY, 10
@@ -72,6 +111,8 @@ call Gotoxy
 
 mov al, snake
 call writechar
+
+call PlaceFood
 
 Gameloop:
 call ReadKey
@@ -168,6 +209,15 @@ mov dh, snakeY
 call Gotoxy
 mov al, snake
 call writechar
+
+; check whether the head reached the food
+mov al, snakeX
+cmp al, foodX
+jne NoMove
+mov al, snakeY
+cmp al, foodY
+jne NoMove
+call PlaceFood
 
 NoMove:
 ret
