@@ -21,13 +21,15 @@ food Byte "*", 0
 foodX Byte 0
 foodY Byte 0
 
-; saved tail vars used when the snake grows
+; old tail position, used for growing
 tailX Byte 0
 tailY Byte 0
 
 ; game state vars
-stat Byte 0; 0 = playing, 1 = lost, 2 = won
+mode Byte 0; 0 = normal, 1 = borderless
+stat Byte 0; 0 = playing, 1 = hit border, 2 = won, 3 = hit itself
 loseMsg Byte "Game Over! Snake hit the border", 0
+loseMsg2 Byte "Game Over! Snake bit itself", 0
 winMsg Byte "You Win! Snake ate 20 foods", 0
 sc Byte 0; number of foods eaten
 scMsg Byte "Score: ", 0
@@ -35,8 +37,9 @@ scMsg Byte "Score: ", 0
 ; menu messages
 menuMsg Byte "SNAKE GAME", 0Dh, 0Ah, 0Dh, 0Ah
 		Byte "1. Play", 0Dh, 0Ah
-		Byte "2. Exit", 0Dh, 0Ah, 0Dh, 0Ah
-		Byte "Choose (1-2): ", 0
+		Byte "2. Borderless", 0Dh, 0Ah
+		Byte "3. Exit", 0Dh, 0Ah, 0Dh, 0Ah
+		Byte "Choose (1-3): ", 0
 
 .code
 Drawborder PROC; procedure to draw border
@@ -84,19 +87,19 @@ loop yloop
 ret
 drawborder ENDP
 
-PlaceFood PROC; place food at a random location inside the border
+PlaceFood PROC; place food at random location inside border
 NewFood:
 mov eax, cols - 2
 call RandomRange
-inc eax; x coordinate from 1 to cols - 2
+inc eax; x from 1 to cols - 2
 mov foodX, al
 
 mov eax, rows - 2
 call RandomRange
-inc eax; y coordinate from 1 to rows - 2
+inc eax; y from 1 to rows - 2
 mov foodY, al
 
-; food must not land on the snake
+; check food is not on snake
 movzx ecx, snakelen
 mov esi, 0
 CheckSnake:
@@ -118,9 +121,9 @@ call WriteChar
 ret
 PlaceFood ENDP
 
-ShowScore PROC; display the current score below the border
-mov dl, 0
-mov dh, rows
+ShowScore PROC; show score on the right side of border
+mov dl, cols + 2
+mov dh, 2
 call Gotoxy
 mov edx, OFFSET scMsg
 call WriteString
@@ -132,6 +135,8 @@ ShowScore ENDP
 Game PROC; procedure to take the input key from user
 mov stat, 0
 mov sc, 0
+mov snakelen, 1; reset for replay
+mov direction, 0
 mov snakeX, 20
 mov snakeY, 10
 
@@ -160,17 +165,42 @@ cmp ah, 4Bh ;left arrow
 je MoveLeft
 cmp ah, 4Dh ;right arrow
 je MoveRight
+jmp MoveStep; other keys do nothing
 
+; snake cant go opposite direction if length > 1
 MoveUp:
+cmp snakelen, 1
+je SetUp
+cmp direction, 2
+je MoveStep
+SetUp:
 mov direction, 1
 jmp MoveStep
+
 MoveDown:
+cmp snakelen, 1
+je SetDown
+cmp direction, 1
+je MoveStep
+SetDown:
 mov direction, 2
 jmp MoveStep
+
 MoveLeft:
+cmp snakelen, 1
+je SetLeft
+cmp direction, 4
+je MoveStep
+SetLeft:
 mov direction, 3
 jmp MoveStep
+
 MoveRight:
+cmp snakelen, 1
+je SetRight
+cmp direction, 3
+je MoveStep
+SetRight:
 mov direction, 4
 jmp MoveStep
 
@@ -183,12 +213,17 @@ call Delay
 jmp Gameloop
 
 EndGame:
-mov dl, 0
-mov dh, rows + 1
+mov dl, cols + 2
+mov dh, 4
 call Gotoxy
 cmp stat, 2
 je WonGame
+cmp stat, 3
+je LoseSelf
 mov edx, OFFSET loseMsg
+jmp ShowGameResult
+LoseSelf:
+mov edx, OFFSET loseMsg2
 jmp ShowGameResult
 WonGame:
 mov edx, OFFSET winMsg
@@ -255,7 +290,10 @@ inc snakeX
 jmp UpdateHead
 
 UpdateHead:
-; check whether the new head reached the border
+cmp mode, 1
+je WrapCheck
+
+; normal mode, border ends the game
 cmp snakeX, 0
 je HitWall
 cmp snakeX, cols - 1
@@ -264,14 +302,51 @@ cmp snakeY, 0
 je HitWall
 cmp snakeY, rows - 1
 je HitWall
+jmp SelfCheck
 
+; borderless mode, snake comes out from opposite side of border
+WrapCheck:
+cmp snakeX, 0
+jne WrapRight
+mov snakeX, cols - 2
+WrapRight:
+cmp snakeX, cols - 1
+jne WrapUp
+mov snakeX, 1
+WrapUp:
+cmp snakeY, 0
+jne WrapDown
+mov snakeY, rows - 2
+WrapDown:
+cmp snakeY, rows - 1
+jne SelfCheck
+mov snakeY, 1
+
+; check if head overlaps body (both modes)
+SelfCheck:
+movzx ecx, snakelen
+dec ecx; body starts from index 1
+jz DrawHead; length 1 cant overlap
+mov esi, 1
+SelfLoop:
+mov al, snakeX
+cmp al, snakeX[esi]
+jne NextSelf
+mov al, snakeY
+cmp al, snakeY[esi]
+je HitSelf
+NextSelf:
+inc esi
+loop SelfLoop
+
+DrawHead:
 mov dl, snakeX
 mov dh, snakeY
 call Gotoxy
 mov al, snake
 call writechar
 
-; check whether the head reached the food
+; check if head reached food
 mov al, snakeX
 cmp al, foodX
 jne NoMove
@@ -281,7 +356,7 @@ jne NoMove
 
 inc sc
 
-; grow by adding a segment at the old tail position
+; add a segment at old tail position
 movzx esi, snakelen
 cmp esi, MAX_SIZE
 jae FoodEaten
@@ -308,6 +383,10 @@ WonState:
 mov stat, 2
 jmp NoMove
 
+HitSelf:
+mov stat, 3
+jmp NoMove
+
 HitWall:
 mov stat, 1
 
@@ -316,6 +395,7 @@ ret
 MoveSnake endp
 
 main PROC
+call Randomize; so food is different every run
 MenuLoop:
 call clrscr
 mov edx, OFFSET menuMsg
@@ -323,12 +403,21 @@ call WriteString
 call ReadChar
 
 cmp al, '1'
-je StartGame
+je StartNormal
 cmp al, '2'
+je StartBorderless
+cmp al, '3'
 je ExitGame
 jmp MenuLoop
 
-StartGame:
+StartNormal:
+mov mode, 0
+jmp RunGame
+
+StartBorderless:
+mov mode, 1
+
+RunGame:
 call clrscr
 call Drawborder
 call Game
@@ -338,7 +427,7 @@ jmp MenuLoop
 ExitGame:
 mov dl, 0
 mov dh, rows+1
-call Gotoxy
+Call Gotoxy
 
 exit
 main ENDP
