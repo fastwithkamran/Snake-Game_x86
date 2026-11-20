@@ -26,20 +26,21 @@ tailX Byte 0
 tailY Byte 0
 
 ; game state vars
-mode Byte 0; 0 = normal, 1 = borderless
-stat Byte 0; 0 = playing, 1 = hit border, 2 = won, 3 = hit itself
-loseMsg Byte "Game Over! Snake hit the border", 0
-loseMsg2 Byte "Game Over! Snake bit itself", 0
-winMsg Byte "You Win! Snake ate 20 foods", 0
-sc Byte 0; number of foods eaten
+mode Byte 0; for border and borderless
+stat Byte 0; 
+
+loseMsg Byte "Game Over, You Out Sir! ", 0
+winMsg Byte "You Win Sir! ", 0
+
+sc Byte 0; to track score
 scMsg Byte "Score: ", 0
 
 ; menu messages
-menuMsg Byte "SNAKE GAME", 0Dh, 0Ah, 0Dh, 0Ah
-		Byte "1. Play", 0Dh, 0Ah
-		Byte "2. Borderless", 0Dh, 0Ah
-		Byte "3. Exit", 0Dh, 0Ah, 0Dh, 0Ah
-		Byte "Choose (1-3): ", 0
+menu Byte "SNAKE GAME", 0Dh, 0Ah
+     Byte "1. Border", 0Dh, 0Ah
+     Byte "2. Borderless", 0Dh, 0Ah
+     Byte "3. Exit", 0Dh, 0Ah
+     Byte "Choose (1-3): ", 0
 
 .code
 Drawborder PROC; procedure to draw border
@@ -87,7 +88,7 @@ loop yloop
 ret
 drawborder ENDP
 
-PlaceFood PROC; place food at random location inside border
+PlaceFood PROC; place food at random spots
 NewFood:
 mov eax, cols - 2
 call RandomRange
@@ -121,7 +122,7 @@ call WriteChar
 ret
 PlaceFood ENDP
 
-ShowScore PROC; show score on the right side of border
+ShowScore PROC; to display score
 mov dl, cols + 2
 mov dh, 2
 call Gotoxy
@@ -132,11 +133,11 @@ call WriteDec
 ret
 ShowScore ENDP
 
-Game PROC; procedure to take the input key from user
-mov stat, 0
-mov sc, 0
-mov snakelen, 1; reset for replay
-mov direction, 0
+Game PROC; procedure for input from user
+mov stat, 0; play
+mov sc, 0; score
+mov snakelen, 1; starting length
+mov direction, 0; direction 0 so snake stop at start
 mov snakeX, 20
 mov snakeY, 10
 
@@ -167,7 +168,7 @@ cmp ah, 4Dh ;right arrow
 je MoveRight
 jmp MoveStep; other keys do nothing
 
-; snake cant go opposite direction if length > 1
+; snake cant go opposite direction (when length > 1)
 MoveUp:
 cmp snakelen, 1
 je SetUp
@@ -206,8 +207,9 @@ jmp MoveStep
 
 MoveStep:
 call MoveSnake
-cmp stat, 0
+cmp stat, 0; if stat isnt 0 then user is win or lose
 jne EndGame
+
 mov eax, 100; control game speed
 call Delay
 jmp Gameloop
@@ -216,19 +218,22 @@ EndGame:
 mov dl, cols + 2
 mov dh, 4
 call Gotoxy
-cmp stat, 2
-je WonGame
-cmp stat, 3
-je LoseSelf
-mov edx, OFFSET loseMsg
-jmp ShowGameResult
-LoseSelf:
-mov edx, OFFSET loseMsg2
-jmp ShowGameResult
-WonGame:
+
+cmp stat, 1 ; won game
+jne lose
+
 mov edx, OFFSET winMsg
-ShowGameResult:
-call WriteString
+call writestring
+jmp finish
+ 
+lose:
+mov edx, OFFSET loseMsg
+call writestring
+
+finish:
+mov eax, 3000; delay before program ends
+call Delay
+
 ret
 Game endp
 
@@ -250,20 +255,20 @@ call Gotoxy ;move the cursor to tail
 mov al, ' '; update tail
 call writechar
 
-; shift coordinates one index ahead to make room for the new head
+; shift coordinates one index ahead
 movzx ecx, snakelen
 dec ecx; cause tail has been removed
 
-cmp ecx, 0
-je CheckDirection
+cmp ecx, 0 
+je CheckDirection; for if snake length is 1
 
 Shiftloop:
 mov al, snakeX[ecx - 1]
 mov snakeX[ecx], al
+
 mov al, snakeY[ecx - 1]
 mov snakeY[ecx], al
-dec ecx
-jnz Shiftloop
+loop Shiftloop
 
 ; update head
 CheckDirection:
@@ -293,7 +298,7 @@ UpdateHead:
 cmp mode, 1
 je WrapCheck
 
-; normal mode, border ends the game
+; snake hit the border
 cmp snakeX, 0
 je HitWall
 cmp snakeX, cols - 1
@@ -322,7 +327,7 @@ cmp snakeY, rows - 1
 jne SelfCheck
 mov snakeY, 1
 
-; check if head overlaps body (both modes)
+; check if head overlaps body
 SelfCheck:
 movzx ecx, snakelen
 dec ecx; body starts from index 1
@@ -380,37 +385,38 @@ call PlaceFood
 jmp NoMove
 
 WonState:
-mov stat, 2
+mov stat, 1
 jmp NoMove
 
 HitSelf:
-mov stat, 3
+mov stat, 2
 jmp NoMove
 
 HitWall:
-mov stat, 1
+mov stat, 3
 
 NoMove:
 ret
 MoveSnake endp
 
 main PROC
-call Randomize; so food is different every run
+call Randomize; so food spawns at diff spots
+
 MenuLoop:
 call clrscr
-mov edx, OFFSET menuMsg
+mov edx, OFFSET menu
 call WriteString
 call ReadChar
 
 cmp al, '1'
-je StartNormal
+je StartBorder
 cmp al, '2'
 je StartBorderless
 cmp al, '3'
 je ExitGame
 jmp MenuLoop
 
-StartNormal:
+StartBorder:
 mov mode, 0
 jmp RunGame
 
@@ -425,10 +431,6 @@ call WaitMsg
 jmp MenuLoop
 
 ExitGame:
-mov dl, 0
-mov dh, rows+1
-Call Gotoxy
-
 exit
 main ENDP
 END main
