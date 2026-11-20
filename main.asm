@@ -117,8 +117,16 @@ loop CheckSnake
 mov dl, foodX
 mov dh, foodY
 call Gotoxy
+
+;food color
+mov eax, lightRed + (black * 16)
+call SetTextColor
+
 mov al, food
 call WriteChar
+
+mov eax, lightgray + (black * 16)
+call SetTextColor
 ret
 PlaceFood ENDP
 
@@ -425,7 +433,14 @@ mov mode, 1
 
 RunGame:
 call clrscr
+
+;border color 
+mov eax, lightCyan + (black * 16)
+call SetTextColor
 call Drawborder
+
+mov eax, lightgray + (black * 16)
+call SetTextColor
 call Game
 call WaitMsg
 jmp MenuLoop
