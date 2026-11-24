@@ -29,7 +29,8 @@ tailY Byte 0
 mode Byte 0; for border and borderless
 stat Byte 0; 
 
-loseMsg Byte "Game Over, You Out Sir! ", 0
+cont Byte "Game Over..", 0
+loseMsg Byte "You Out Sir! ", 0
 winMsg Byte "You Win Sir! ", 0
 
 sc Byte 0; to track score
@@ -230,18 +231,17 @@ call Gotoxy
 cmp stat, 1 ; won game
 jne lose
 
+mov ebx, OFFSET cont
 mov edx, OFFSET winMsg
-call writestring
+call MsgBox
 jmp finish
  
 lose:
 mov edx, OFFSET loseMsg
-call writestring
+mov ebx, OFFSET cont
+call MsgBox
 
 finish:
-mov eax, 3000; delay before program ends
-call Delay
-
 ret
 Game endp
 
@@ -442,7 +442,6 @@ call Drawborder
 mov eax, lightgray + (black * 16)
 call SetTextColor
 call Game
-call WaitMsg
 jmp MenuLoop
 
 ExitGame:
